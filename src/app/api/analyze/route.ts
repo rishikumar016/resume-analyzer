@@ -44,7 +44,7 @@ export async function POST(req: NextRequest) {
 
     // Run AI analysis with structured output
     const { object: analysis } = await generateObject({
-      model: openai("gpt-4o"),
+      model: openai("gpt-5.4-mini"),
       schema: resumeAnalysisSchema,
       system: SYSTEM_PROMPT,
       prompt: buildUserPrompt(resumeText, jobDescription || undefined),
