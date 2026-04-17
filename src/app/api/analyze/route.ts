@@ -4,7 +4,7 @@ import { openai } from "@ai-sdk/openai";
 import { resumeAnalysisSchema } from "@/types";
 import { SYSTEM_PROMPT, buildUserPrompt } from "@/lib/ai/prompts";
 import { extractTextFromPDF } from "@/lib/parser/pdf";
-import { db } from "@/lib/db";
+import { db, isDatabaseConfigured } from "@/lib/db";
 import { resumes, analyses } from "@/lib/db/schema";
 
 export const maxDuration = 60; // allow up to 60s for LLM response
@@ -50,33 +50,43 @@ export async function POST(req: NextRequest) {
       prompt: buildUserPrompt(resumeText, jobDescription || undefined),
     });
 
-    const [resume] = await db
-      .insert(resumes)
-      .values({
-        fileName: file.name,
-        rawText: resumeText,
-      })
-      .returning();
+    let savedToDatabase = false;
 
-    await db.insert(analyses).values({
-      resumeId: resume.id,
-      jobDescription: jobDescription || null,
-      overallScore: analysis.overallScore,
-      scores: analysis.scores,
-      extractedData: {
-        name: analysis.name,
-        email: analysis.email,
-        phone: analysis.phone,
-        summary: analysis.summary,
-        skills: analysis.skills,
-        experience: analysis.experience,
-        education: analysis.education,
-      },
-      suggestions: analysis.suggestions,
-      jobMatch: analysis.jobMatch || null,
-    });
+    if (db && isDatabaseConfigured) {
+      try {
+        const [resume] = await db
+          .insert(resumes)
+          .values({
+            fileName: file.name,
+            rawText: resumeText,
+          })
+          .returning();
 
-    return NextResponse.json({ success: true, data: analysis });
+        await db.insert(analyses).values({
+          resumeId: resume.id,
+          jobDescription: jobDescription || null,
+          overallScore: analysis.overallScore,
+          scores: analysis.scores,
+          extractedData: {
+            name: analysis.name,
+            email: analysis.email,
+            phone: analysis.phone,
+            summary: analysis.summary,
+            skills: analysis.skills,
+            experience: analysis.experience,
+            education: analysis.education,
+          },
+          suggestions: analysis.suggestions,
+          jobMatch: analysis.jobMatch || null,
+        });
+
+        savedToDatabase = true;
+      } catch (dbError) {
+        console.error("Database save failed:", dbError);
+      }
+    }
+
+    return NextResponse.json({ success: true, data: analysis, savedToDatabase });
   } catch (error) {
     console.error("Analysis failed:", error);
     const message =
