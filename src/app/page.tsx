@@ -1,12 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { FileSearch, Loader2, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
@@ -16,6 +15,7 @@ import { ScoreCard } from "@/components/ScoreCard";
 import { SuggestionsList } from "@/components/SuggestionsList";
 import { SkillsDisplay } from "@/components/SkillsDisplay";
 import { JobMatch } from "@/components/JobMatch";
+import { Hero } from "@/components/ui/animated-hero";
 import type { ResumeAnalysis } from "@/types";
 
 export default function Home() {
@@ -24,6 +24,7 @@ export default function Home() {
   const [analysis, setAnalysis] = useState<ResumeAnalysis | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const uploadRef = useRef<HTMLDivElement>(null);
 
   const handleAnalyze = async () => {
     if (!file) return;
@@ -63,95 +64,96 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <header className="border-b">
-        <div className="container mx-auto flex items-center gap-3 px-4 py-4">
-          <FileSearch className="h-6 w-6 text-primary" />
-          <h1 className="text-xl font-semibold tracking-tight">
-            Resume Analyzer
-          </h1>
+      <header className="sticky top-0 z-50 border-b bg-background/80 backdrop-blur-sm">
+        <div className="container mx-auto flex items-center justify-between px-4 py-3">
+          <div className="flex items-center gap-2">
+            <FileSearch className="h-5 w-5 text-primary" />
+            <span className="text-sm font-semibold tracking-tight">
+              Resume Analyzer
+            </span>
+          </div>
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-8">
+      <main className="container mx-auto px-4">
         {!analysis ? (
           /* ── Upload state ── */
-          <div className="mx-auto max-w-2xl space-y-6">
-            <div className="text-center space-y-2">
-              <h2 className="text-3xl font-bold tracking-tight">
-                Analyze your resume
-              </h2>
-              <p className="text-muted-foreground">
-                Get an AI-powered score, skill extraction, and actionable
-                suggestions to improve your resume.
-              </p>
-            </div>
+          <div>
+            <Hero
+              onGetStarted={() =>
+                uploadRef.current?.scrollIntoView({ behavior: "smooth" })
+              }
+            />
 
-            {/* Upload card */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Upload resume</CardTitle>
-                <CardDescription>
-                  Upload your resume as a PDF to get started.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <ResumeUploader
-                  onFileSelect={setFile}
-                  selectedFile={file}
-                  onClear={() => setFile(null)}
+            <div
+              ref={uploadRef}
+              className="mx-auto max-w-xl space-y-5 pb-20"
+            >
+              <div className="space-y-1">
+                <h2 className="text-lg font-semibold tracking-tight">
+                  Upload your resume
+                </h2>
+                <p className="text-sm text-muted-foreground">
+                  Drop a PDF to get started with the analysis.
+                </p>
+              </div>
+
+              <ResumeUploader
+                onFileSelect={setFile}
+                selectedFile={file}
+                onClear={() => setFile(null)}
+              />
+
+              {/* Job description (optional) */}
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium">
+                  Job description{" "}
+                  <span className="text-muted-foreground font-normal">
+                    (optional)
+                  </span>
+                </label>
+                <textarea
+                  value={jobDescription}
+                  onChange={(e) => setJobDescription(e.target.value)}
+                  placeholder="Paste a job description to get a match score and tailored recommendations..."
+                  className="w-full min-h-28 rounded-lg border border-input bg-background px-3 py-2 text-sm shadow-sm shadow-black/5 placeholder:text-muted-foreground/70 focus-visible:border-ring focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/20 resize-y"
                 />
+              </div>
 
-                {/* Job description (optional) */}
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">
-                    Job description{" "}
-                    <span className="text-muted-foreground font-normal">
-                      (optional)
-                    </span>
-                  </label>
-                  <textarea
-                    value={jobDescription}
-                    onChange={(e) => setJobDescription(e.target.value)}
-                    placeholder="Paste a job description to get a match score and tailored recommendations..."
-                    className="w-full min-h-[120px] rounded-lg border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-y"
-                  />
+              {/* Error */}
+              {error && (
+                <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+                  {error}
                 </div>
+              )}
 
-                {/* Error */}
-                {error && (
-                  <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800 dark:border-red-800 dark:bg-red-900/20 dark:text-red-400">
-                    {error}
-                  </div>
+              {/* Analyze button */}
+              <Button
+                onClick={handleAnalyze}
+                disabled={!file || isLoading}
+                className="w-full"
+                size="lg"
+              >
+                {isLoading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Analyzing...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="h-4 w-4" />
+                    Analyze resume
+                  </>
                 )}
-
-                {/* Analyze button */}
-                <Button
-                  onClick={handleAnalyze}
-                  disabled={!file || isLoading}
-                  className="w-full"
-                  size="lg"
-                >
-                  {isLoading ? (
-                    <>
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      Analyzing...
-                    </>
-                  ) : (
-                    <>
-                      <Sparkles className="h-4 w-4" />
-                      Analyze resume
-                    </>
-                  )}
-                </Button>
-              </CardContent>
-            </Card>
+              </Button>
+            </div>
           </div>
         ) : (
           /* ── Results state ── */
-          <div className="space-y-6">
+          <div className="space-y-6 py-8">
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="text-2xl font-bold tracking-tight">
+                <h2 className="text-xl font-semibold tracking-tight">
                   {analysis.name}
                 </h2>
                 <p className="text-sm text-muted-foreground">
@@ -160,6 +162,7 @@ export default function Home() {
               </div>
               <Button
                 variant="outline"
+                size="sm"
                 onClick={() => {
                   setAnalysis(null);
                   setFile(null);
