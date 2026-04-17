@@ -36,7 +36,7 @@ function Hero({ onGetStarted }: { onGetStarted?: () => void }) {
 
           <div className="flex gap-4 flex-col items-center">
             <h1 className="text-4xl md:text-6xl max-w-2xl tracking-tight text-center font-semibold leading-tight">
-              <span>Your resume,</span>
+              <span>Tailor resume,</span>
               <span className="relative flex w-full justify-center overflow-hidden text-center md:pb-4 md:pt-1">
                 &nbsp;
                 {titles.map((title, index) => (
