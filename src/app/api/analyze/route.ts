@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { generateObject } from "ai";
 import { openai } from "@ai-sdk/openai";
+import { eq } from "drizzle-orm";
 import { resumeAnalysisSchema } from "@/types";
 import { SYSTEM_PROMPT, buildUserPrompt } from "@/lib/ai/prompts";
 import { extractTextFromPDF } from "@/lib/parser/pdf";
 import { db, isDatabaseConfigured } from "@/lib/db";
-import { resumes, analyses } from "@/lib/db/schema";
+import { users, resumes, analyses } from "@/lib/db/schema";
+import { createClient } from "@/lib/supabase/server";
 
 export const maxDuration = 60; // allow up to 60s for LLM response
 
@@ -51,18 +53,43 @@ export async function POST(req: NextRequest) {
     });
 
     let savedToDatabase = false;
+    let analysisId: string | null = null;
 
     if (db && isDatabaseConfigured) {
       try {
+        // Get the authenticated Supabase user (optional — gracefully skip if not logged in)
+        let userId: string | null = null;
+        try {
+          const supabase = await createClient();
+          const { data: { user } } = await supabase.auth.getUser();
+          if (user) {
+            // Upsert user row keyed by Supabase auth id
+            const existing = await db.select().from(users).where(eq(users.authId, user.id)).limit(1);
+            if (existing.length > 0) {
+              userId = existing[0].id;
+            } else {
+              const [newUser] = await db.insert(users).values({
+                authId: user.id,
+                email: user.email!,
+                name: user.user_metadata?.full_name ?? null,
+              }).returning();
+              userId = newUser.id;
+            }
+          }
+        } catch {
+          // Auth not configured or user not logged in — continue without userId
+        }
+
         const [resume] = await db
           .insert(resumes)
           .values({
+            userId: userId ?? null,
             fileName: file.name,
             rawText: resumeText,
           })
           .returning();
 
-        await db.insert(analyses).values({
+        const [savedAnalysis] = await db.insert(analyses).values({
           resumeId: resume.id,
           jobDescription: jobDescription || null,
           overallScore: analysis.overallScore,
@@ -78,15 +105,16 @@ export async function POST(req: NextRequest) {
           },
           suggestions: analysis.suggestions,
           jobMatch: analysis.jobMatch || null,
-        });
+        }).returning();
 
         savedToDatabase = true;
+        analysisId = savedAnalysis.id;
       } catch (dbError) {
         console.error("Database save failed:", dbError);
       }
     }
 
-    return NextResponse.json({ success: true, data: analysis, savedToDatabase });
+    return NextResponse.json({ success: true, data: analysis, savedToDatabase, analysisId });
   } catch (error) {
     console.error("Analysis failed:", error);
     const message =
