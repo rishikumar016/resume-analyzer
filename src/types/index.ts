@@ -91,8 +91,15 @@ export interface AnalyzeRequest {
   jobDescription?: string;
 }
 
+export interface AnalyzeMutationInput {
+  file: File;
+  jobDescription?: string;
+}
+
 export interface AnalyzeResponse {
   success: boolean;
   data?: ResumeAnalysis;
   error?: string;
+  savedToDatabase?: boolean;
+  analysisId?: string | null;
 }

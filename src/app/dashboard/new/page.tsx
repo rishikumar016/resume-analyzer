@@ -3,52 +3,50 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, Sparkles } from "lucide-react";
+import { useForm } from "react-hook-form";
+import { useAnalyzeResumeMutation } from "@/app/query";
+import { ResumeUploader } from "@/components/ResumeUploader";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { SidebarTrigger } from "@/components/ui/sidebar";
+import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Separator } from "@/components/ui/separator";
-import { ResumeUploader } from "@/components/ResumeUploader";
+import { SidebarTrigger } from "@/components/ui/sidebar";
+import { Textarea } from "@/components/ui/textarea";
+
+type NewAnalysisValues = {
+  jobDescription: string;
+};
 
 export default function NewAnalysisPage() {
   const router = useRouter();
+  const analyzeMutation = useAnalyzeResumeMutation();
   const [file, setFile] = useState<File | null>(null);
-  const [jobDescription, setJobDescription] = useState("");
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { register, handleSubmit } = useForm<NewAnalysisValues>({
+    defaultValues: {
+      jobDescription: "",
+    },
+  });
 
-  const handleAnalyze = async () => {
+  const onSubmit = async (values: NewAnalysisValues) => {
     if (!file) return;
-    setLoading(true);
     setError(null);
 
     try {
-      const formData = new FormData();
-      formData.append("resume", file);
-      if (jobDescription.trim()) {
-        formData.append("jobDescription", jobDescription.trim());
-      }
-
-      const res = await fetch("/api/analyze", {
-        method: "POST",
-        body: formData,
+      const result = await analyzeMutation.mutateAsync({
+        file,
+        jobDescription: values.jobDescription,
       });
 
-      const json = await res.json();
-
-      if (!json.success) {
-        throw new Error(json.error || "Analysis failed.");
-      }
-
-      // Navigate to result view
-      if (json.analysisId) {
-        router.push(`/dashboard/analysis/${json.analysisId}`);
+      if (result.analysisId) {
+        router.push(`/dashboard/analysis/${result.analysisId}`);
       } else {
         router.push("/dashboard");
       }
+
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong.");
-      setLoading(false);
     }
   };
 
@@ -61,7 +59,10 @@ export default function NewAnalysisPage() {
       </header>
 
       <div className="flex-1 p-6">
-        <div className="mx-auto max-w-xl space-y-6">
+        <form
+          onSubmit={handleSubmit(onSubmit)}
+          className="mx-auto flex max-w-xl flex-col gap-6"
+        >
           <div>
             <h2 className="text-xl font-semibold tracking-tight">
               Analyze a resume
@@ -88,18 +89,22 @@ export default function NewAnalysisPage() {
             <CardHeader>
               <CardTitle className="text-base">
                 Job description{" "}
-                <span className="text-muted-foreground font-normal text-sm">
+                <span className="text-sm font-normal text-muted-foreground">
                   (optional)
                 </span>
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <textarea
-                value={jobDescription}
-                onChange={(e) => setJobDescription(e.target.value)}
-                placeholder="Paste a job description to get a match score and tailored recommendations..."
-                className="w-full min-h-28 rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground/70 focus-visible:border-ring focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/20 resize-y"
-              />
+              <FieldGroup>
+                <Field>
+                  <FieldLabel htmlFor="jobDescription">Role details</FieldLabel>
+                  <Textarea
+                    id="jobDescription"
+                    placeholder="Paste a job description to get a match score and tailored recommendations..."
+                    {...register("jobDescription")}
+                  />
+                </Field>
+              </FieldGroup>
             </CardContent>
           </Card>
 
@@ -110,12 +115,12 @@ export default function NewAnalysisPage() {
           )}
 
           <Button
-            onClick={handleAnalyze}
-            disabled={!file || loading}
+            type="submit"
+            disabled={!file || analyzeMutation.isPending}
             className="w-full gap-2"
             size="lg"
           >
-            {loading ? (
+            {analyzeMutation.isPending ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin" />
                 Analyzing...
@@ -127,7 +132,7 @@ export default function NewAnalysisPage() {
               </>
             )}
           </Button>
-        </div>
+        </form>
       </div>
     </div>
   );
