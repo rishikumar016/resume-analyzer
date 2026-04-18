@@ -1,11 +1,16 @@
 "use client";
 
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import type { AnalyzeMutationInput, AnalyzeResponse } from "@/types";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import type {
+  AnalysesResponse,
+  AnalyzeMutationInput,
+  AnalyzeResponse,
+} from "@/types";
 
 export const analysisKeys = {
   all: ["analyses"] as const,
   analyze: ["analyses", "analyze"] as const,
+  history: ["analyses", "history"] as const,
 };
 
 async function analyzeResume({
@@ -33,6 +38,21 @@ async function analyzeResume({
   return result;
 }
 
+async function fetchAnalyses() {
+  const response = await fetch("/api/analyses", {
+    method: "GET",
+    cache: "no-store",
+  });
+
+  const result = (await response.json()) as AnalysesResponse;
+
+  if (!response.ok || !result.success) {
+    throw new Error(result.error || "Unable to load analysis history.");
+  }
+
+  return result.data ?? [];
+}
+
 export function useAnalyzeResumeMutation() {
   const queryClient = useQueryClient();
 
@@ -42,5 +62,12 @@ export function useAnalyzeResumeMutation() {
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: analysisKeys.all });
     },
+  });
+}
+
+export function useAnalysesQuery() {
+  return useQuery({
+    queryKey: analysisKeys.history,
+    queryFn: fetchAnalyses,
   });
 }

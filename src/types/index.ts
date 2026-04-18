@@ -103,3 +103,34 @@ export interface AnalyzeResponse {
   savedToDatabase?: boolean;
   analysisId?: string | null;
 }
+
+export interface AnalysisHistoryItem {
+  id: string;
+  fileName: string;
+  overallScore: number;
+  analyzedAt: string;
+  jobDescription: string | null;
+  extractedData: {
+    name: string;
+    summary: string;
+    skills: Array<{ name: string; category: string; proficiency: string }>;
+  };
+  suggestions: Array<{
+    category: string;
+    priority: "high" | "medium" | "low";
+    title: string;
+    description: string;
+  }>;
+  jobMatch: {
+    matchPercentage: number;
+    matchedSkills: string[];
+    missingSkills: string[];
+    recommendations: string[];
+  } | null;
+}
+
+export interface AnalysesResponse {
+  success: boolean;
+  data?: AnalysisHistoryItem[];
+  error?: string;
+}
