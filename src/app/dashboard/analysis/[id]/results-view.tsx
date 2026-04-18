@@ -1,25 +1,36 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
 import {
   AlertCircle,
   ArrowRight,
   CheckCircle2,
-  ChevronDown,
-  ChevronUp,
   Download,
   FileText,
   Info,
   Sparkles,
   Zap,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { SidebarTrigger } from "@/components/ui/sidebar";
 
-/* ------------------------------------------------------------------ */
-/*  Props                                                              */
-/* ------------------------------------------------------------------ */
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
+
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+
 interface AnalysisResultsViewProps {
   analysisId: string;
   overallScore: number;
@@ -67,456 +78,554 @@ interface AnalysisResultsViewProps {
   analyzedAt: string;
 }
 
-/* ------------------------------------------------------------------ */
-/*  Design tokens                                                      */
-/* ------------------------------------------------------------------ */
-const T = {
-  bg: "#f8f9fe",
-  surface: "#ffffff",
-  surfaceContainer: "#eaeef5",
-  surfaceLow: "#f1f4fa",
-  primary: "#5056af",
-  primaryContainer: "#9298f7",
-  onSurface: "#2d333a",
-  onSurfaceVariant: "#5a6068",
-  outline: "#757b84",
-  outlineVariant: "#adb2bb",
-  error: "#a8364b",
-  errorBg: "rgba(168,54,75,0.08)",
-  tertiary: "#974362",
-  tertiaryContainer: "#fe97b9",
-  success: "#2e7d5b",
-  successBg: "rgba(46,125,91,0.08)",
-  warning: "#b8860b",
-  warningBg: "rgba(184,134,11,0.08)",
-  fontHead: "Manrope, var(--font-sans)",
-  fontBody: "Inter, var(--font-sans)",
-};
-
-/* ------------------------------------------------------------------ */
-/*  Helpers                                                            */
-/* ------------------------------------------------------------------ */
-function getScoreLabel(s: number) {
-  if (s >= 85) return "Strong";
-  if (s >= 70) return "Good";
-  if (s >= 50) return "Needs Work";
+function getScoreLabel(score: number) {
+  if (score >= 85) return "Strong";
+  if (score >= 70) return "Good";
+  if (score >= 50) return "Needs work";
   return "Weak";
 }
 
-function getScoreBadgeStyle(s: number) {
-  if (s >= 85) return { bg: T.successBg, color: T.success };
-  if (s >= 70) return { bg: "rgba(80,86,175,0.1)", color: T.primary };
-  if (s >= 50) return { bg: T.warningBg, color: T.warning };
-  return { bg: T.errorBg, color: T.error };
+function getScoreBadgeVariant(
+  score: number,
+): "default" | "secondary" | "outline" | "destructive" {
+  if (score >= 85) return "default";
+  if (score >= 70) return "secondary";
+  if (score >= 50) return "outline";
+  return "destructive";
 }
 
-const TABS = [
-  { key: "overview", label: "Tone & Style" },
-  { key: "content", label: "Content" },
-  { key: "structure", label: "Structure" },
-  { key: "skills", label: "Skills" },
-] as const;
+function getPriorityVariant(
+  priority: "high" | "medium" | "low",
+): "default" | "secondary" | "outline" | "destructive" {
+  if (priority === "high") return "destructive";
+  if (priority === "medium") return "secondary";
+  return "outline";
+}
 
-type TabKey = (typeof TABS)[number]["key"];
-
-const TAB_SCORE_MAP: Record<TabKey, (keyof AnalysisResultsViewProps["scores"])[]> = {
-  overview: ["formatting", "impact"],
-  content: ["relevance", "experience"],
-  structure: ["formatting", "education"],
-  skills: ["skills", "relevance"],
-};
-
-/* ================================================================== */
-/*  MAIN COMPONENT                                                     */
-/* ================================================================== */
-export function AnalysisResultsView(props: AnalysisResultsViewProps) {
-  const {
-    overallScore,
-    scores,
-    extractedData,
-    suggestions,
-    jobMatch,
-    fileName,
-    analyzedAt,
-  } = props;
-
-  const [activeTab, setActiveTab] = useState<TabKey>("overview");
-  const [checklistOpen, setChecklistOpen] = useState(true);
-
-  const highSuggestion = suggestions.find((s) => s.priority === "high");
-  const sortedSuggestions = [...suggestions].sort((a, b) => {
-    const o = { high: 0, medium: 1, low: 2 };
-    return o[a.priority] - o[b.priority];
-  });
-
-  const date = new Date(analyzedAt);
-  const formattedDate = date.toLocaleDateString("en-US", {
+function formatAnalysisDate(value: string) {
+  return new Date(value).toLocaleDateString("en-US", {
     month: "short",
     day: "numeric",
     year: "numeric",
   });
+}
 
-  const avgTabScore = Math.round(
-    TAB_SCORE_MAP[activeTab].reduce((sum, k) => sum + scores[k], 0) /
-      TAB_SCORE_MAP[activeTab].length
-  );
+const RESULT_TABS = [
+  {
+    key: "overview",
+    label: "Overview",
+    text: "A top-level editorial read on the overall structure and narrative quality.",
+    scoreKeys: ["formatting", "impact"] as const,
+  },
+  {
+    key: "content",
+    label: "Content",
+    text: "How well your experience and positioning align to the intended role.",
+    scoreKeys: ["relevance", "experience"] as const,
+  },
+  {
+    key: "structure",
+    label: "Structure",
+    text: "Section hierarchy, readability, and how clearly the document is organized.",
+    scoreKeys: ["formatting", "education"] as const,
+  },
+  {
+    key: "skills",
+    label: "Skills",
+    text: "Skill coverage, role-fit signals, and the strength of your technical profile.",
+    scoreKeys: ["skills", "relevance"] as const,
+  },
+] as const;
+
+export function AnalysisResultsView({
+  analysisId,
+  overallScore,
+  scores,
+  extractedData,
+  suggestions,
+  jobMatch,
+  jobDescription,
+  fileName,
+  analyzedAt,
+}: AnalysisResultsViewProps) {
+  const highSuggestion = suggestions.find((s) => s.priority === "high");
+  const sortedSuggestions = [...suggestions].sort((a, b) => {
+    const order = { high: 0, medium: 1, low: 2 };
+    return order[a.priority] - order[b.priority];
+  });
+
+  const formattedDate = formatAnalysisDate(analyzedAt);
+  const roleHint = extractedData.experience?.[0]?.role || "your target role";
 
   return (
-    <div className="flex flex-col min-h-screen" style={{ backgroundColor: T.bg }}>
-      {/* ── HEADER ───────────────────────────────────────── */}
-      <header
-        className="sticky top-0 z-20 flex items-center justify-between px-4 py-3 sm:px-6"
-        style={{ backgroundColor: T.bg }}
-      >
-        <div className="flex items-center gap-3">
-          <SidebarTrigger />
-          <h1
-            className="text-base font-bold tracking-tight sm:text-lg"
-            style={{ fontFamily: T.fontHead, color: T.onSurface }}
-          >
-            Intelligence Dashboard
-          </h1>
-          <span
-            className="hidden rounded-full px-3 py-0.5 text-[11px] font-semibold sm:inline-block"
-            style={{ backgroundColor: T.surfaceContainer, color: T.onSurfaceVariant }}
-          >
-            Active Review
-          </span>
-        </div>
-        <div className="flex items-center gap-2">
-          <div
-            className="flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold"
-            style={{
-              background: `linear-gradient(135deg, ${T.primary}, ${T.primaryContainer})`,
-              color: "#fbf7ff",
-            }}
-          >
-            {extractedData.name?.[0]?.toUpperCase() ?? "U"}
-          </div>
-        </div>
-      </header>
-
-      {/* ── BODY ─────────────────────────────────────────── */}
-      <div className="flex-1 px-4 pb-24 sm:px-6">
-        <div className="mx-auto grid max-w-[1200px] gap-6 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
-          {/* ════════════ LEFT COLUMN ════════════ */}
-          <div className="flex flex-col gap-6">
-            {/* Source Document Card */}
-            <div className="rounded-2xl p-6" style={{ backgroundColor: T.surface, boxShadow: "0 20px 40px rgba(45,51,58,0.06)" }}>
-              <div className="mb-4 flex items-center justify-between">
-                <h2 className="text-sm font-semibold" style={{ fontFamily: T.fontBody, color: T.onSurface }}>
-                  Source Document
-                </h2>
-              </div>
-
-              {/* Mock resume preview */}
-              <div className="rounded-xl p-5" style={{ backgroundColor: T.surfaceLow }}>
-                <div className="space-y-4">
-                  <div className="flex items-center gap-3">
-                    <div className="h-3 w-24 rounded" style={{ backgroundColor: T.surfaceContainer }} />
-                    <div className="h-3 w-16 rounded" style={{ backgroundColor: T.primaryContainer, opacity: 0.4 }} />
-                  </div>
-                  <div className="h-2 w-32 rounded" style={{ backgroundColor: T.surfaceContainer }} />
-                  <div className="space-y-2 pt-2">
-                    {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
-                      <div key={i} className="flex gap-2">
-                        <div className="h-2 rounded" style={{ backgroundColor: T.surfaceContainer, width: `${60 + Math.random() * 35}%` }} />
-                      </div>
-                    ))}
-                  </div>
-                  <div className="h-px" style={{ backgroundColor: T.surfaceContainer }} />
-                  <div className="space-y-2">
-                    {[1, 2, 3, 4].map((i) => (
-                      <div key={i} className="flex gap-2">
-                        <div className="h-2 rounded" style={{ backgroundColor: T.surfaceContainer, width: `${50 + Math.random() * 40}%` }} />
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              <p className="mt-3 truncate text-xs" style={{ color: T.outline, fontFamily: T.fontBody }}>
-                {fileName}
-              </p>
-
-              <button
-                className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl py-2.5 text-xs font-semibold transition-colors hover:opacity-80"
-                style={{ backgroundColor: T.surfaceLow, color: T.primary, fontFamily: T.fontBody }}
-              >
-                <Download className="h-3.5 w-3.5" />
-                Export PDF
-              </button>
-            </div>
-          </div>
-
-          {/* ════════════ RIGHT COLUMN ════════════ */}
-          <div className="flex flex-col gap-6">
-            {/* ── Aggregate Rating + Quick Fix ── */}
-            <div className="grid gap-4 sm:grid-cols-[1fr_auto]">
-              {/* Rating Card */}
-              <div className="flex items-center gap-5 rounded-2xl p-6" style={{ backgroundColor: T.surfaceLow }}>
-                <div className="flex flex-col">
-                  <span className="text-[10px] font-semibold uppercase tracking-[0.15em]" style={{ color: T.outline, fontFamily: T.fontBody }}>
-                    Aggregate Rating
-                  </span>
-                  <div className="mt-1 flex items-baseline gap-1">
-                    <span className="text-4xl font-bold tabular-nums" style={{ fontFamily: T.fontHead, color: T.onSurface }}>
-                      {overallScore}
-                    </span>
-                    <span className="text-sm font-medium" style={{ color: T.outline }}>/100</span>
-                  </div>
-                  <p className="mt-1.5 text-xs" style={{ color: T.onSurfaceVariant, fontFamily: T.fontBody }}>
-                    ↗ Top {Math.max(5, 100 - overallScore)}% for {extractedData.experience?.[0]?.role || "this role"}
+    <div className="min-h-screen bg-background">
+      <div className="mx-auto grid max-w-7xl gap-6 px-4 py-6 pb-24 sm:px-6 lg:grid-cols-[320px_minmax(0,1fr)]">
+        <aside className="flex flex-col gap-6">
+          <Card className="border-0 shadow-sm">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-base">
+                <FileText className="h-4 w-4 text-primary" />
+                Source document
+              </CardTitle>
+              <CardDescription>
+                Resume snapshot, author details, and export actions.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="rounded-lg bg-muted/60 p-4">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-sm font-medium text-foreground">
+                    Report ID
                   </p>
+                  <Badge variant="outline">{analysisId.slice(0, 8)}</Badge>
                 </div>
-                {/* Donut gauge */}
-                <div className="relative ml-auto flex-shrink-0">
-                  <svg width="72" height="72" viewBox="0 0 72 72">
-                    <circle cx="36" cy="36" r="30" fill="none" stroke={T.surfaceContainer} strokeWidth="6" />
-                    <circle
-                      cx="36" cy="36" r="30"
-                      fill="none"
-                      stroke="url(#scoreGrad)"
-                      strokeWidth="6"
-                      strokeLinecap="round"
-                      strokeDasharray={`${(overallScore / 100) * 188.5} 188.5`}
-                      transform="rotate(-90 36 36)"
-                    />
-                    <defs>
-                      <linearGradient id="scoreGrad" x1="0" y1="0" x2="1" y2="1">
-                        <stop offset="0%" stopColor={T.tertiary} />
-                        <stop offset="100%" stopColor={T.primary} />
-                      </linearGradient>
-                    </defs>
-                  </svg>
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="flex h-9 w-9 items-center justify-center rounded-full" style={{ backgroundColor: T.surfaceContainer }}>
-                      <Zap className="h-4 w-4" style={{ color: T.primary }} />
-                    </div>
-                  </div>
+
+                <div className="mt-4 space-y-2">
+                  <div className="h-2 rounded bg-background" />
+                  <div className="h-2 w-4/5 rounded bg-background" />
+                  <div className="h-2 w-2/3 rounded bg-background" />
+                  <div className="h-px bg-border" />
+                  <div className="h-2 w-5/6 rounded bg-background" />
+                  <div className="h-2 w-3/4 rounded bg-background" />
                 </div>
               </div>
 
-              {/* Quick Fix Card */}
-              {highSuggestion && (
-                <div className="flex flex-col justify-center rounded-2xl px-5 py-5 sm:w-44" style={{ background: `linear-gradient(135deg, ${T.onSurface}, #3d4450)`, color: "#fbf7ff" }}>
-                  <AlertCircle className="mb-2 h-5 w-5 opacity-70" />
-                  <p className="text-sm font-bold" style={{ fontFamily: T.fontHead }}>Quick Fix</p>
-                  <p className="mt-1 text-[11px] leading-snug opacity-80" style={{ fontFamily: T.fontBody }}>
-                    {highSuggestion.description.slice(0, 80)}
-                    {highSuggestion.description.length > 80 ? "…" : ""}
-                  </p>
-                </div>
-              )}
-            </div>
-
-            {/* ── Tabs ── */}
-            <div className="flex gap-1 rounded-xl p-1" style={{ backgroundColor: T.surfaceLow }}>
-              {TABS.map((tab) => (
-                <button
-                  key={tab.key}
-                  onClick={() => setActiveTab(tab.key)}
-                  className={cn(
-                    "flex-1 rounded-lg px-3 py-2 text-xs font-semibold transition-all",
-                    activeTab === tab.key ? "shadow-sm" : "hover:opacity-70"
-                  )}
-                  style={{
-                    fontFamily: T.fontBody,
-                    backgroundColor: activeTab === tab.key ? T.surface : "transparent",
-                    color: activeTab === tab.key ? T.primary : T.outline,
-                  }}
-                >
-                  {tab.label}
-                </button>
-              ))}
-            </div>
-
-            {/* ── Improvement Checklist ── */}
-            <div className="rounded-2xl p-6" style={{ backgroundColor: T.surface, boxShadow: "0 20px 40px rgba(45,51,58,0.06)" }}>
-              <button
-                onClick={() => setChecklistOpen(!checklistOpen)}
-                className="flex w-full items-center justify-between"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-xl" style={{ backgroundColor: T.surfaceLow }}>
-                    <CheckCircle2 className="h-4 w-4" style={{ color: T.primary }} />
-                  </div>
-                  <div className="text-left">
-                    <h3 className="text-sm font-bold" style={{ fontFamily: T.fontHead, color: T.onSurface }}>
-                      Resume Improvement Checklist
-                    </h3>
-                    <p className="text-[11px]" style={{ color: T.outline }}>
-                      {suggestions.filter((s) => s.priority === "high").length} critical items remaining
-                    </p>
-                  </div>
-                </div>
-                {checklistOpen ? (
-                  <ChevronUp className="h-4 w-4" style={{ color: T.outline }} />
-                ) : (
-                  <ChevronDown className="h-4 w-4" style={{ color: T.outline }} />
+              <div className="space-y-1 text-sm">
+                <p className="font-medium text-foreground">
+                  {extractedData.name || "Candidate"}
+                </p>
+                {extractedData.email && (
+                  <p className="text-muted-foreground">{extractedData.email}</p>
                 )}
-              </button>
-
-              {checklistOpen && (
-                <div className="mt-5 space-y-3">
-                  {sortedSuggestions.slice(0, 4).map((s, i) => {
-                    const isCritical = s.priority === "high";
-                    const badgeStyle = isCritical
-                      ? { bg: T.errorBg, color: T.error, label: "CRITICAL" }
-                      : s.priority === "medium"
-                        ? { bg: T.warningBg, color: T.warning, label: "ADVISORY" }
-                        : { bg: "rgba(80,86,175,0.08)", color: T.primary, label: "INFO" };
-
-                    return (
-                      <div key={i} className="flex items-start gap-3 rounded-xl p-4" style={{ backgroundColor: T.surfaceLow }}>
-                        <div className="mt-0.5 flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full" style={{ backgroundColor: isCritical ? T.errorBg : T.surfaceContainer }}>
-                          {isCritical ? (
-                            <AlertCircle className="h-3.5 w-3.5" style={{ color: T.error }} />
-                          ) : (
-                            <Info className="h-3.5 w-3.5" style={{ color: T.outline }} />
-                          )}
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center justify-between gap-2">
-                            <p className="text-sm font-semibold" style={{ fontFamily: T.fontBody, color: T.onSurface }}>
-                              {s.title}
-                            </p>
-                            <span className="flex-shrink-0 rounded px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider" style={{ backgroundColor: badgeStyle.bg, color: badgeStyle.color }}>
-                              {badgeStyle.label}
-                            </span>
-                          </div>
-                          <p className="mt-1 text-xs leading-relaxed" style={{ color: T.onSurfaceVariant, fontFamily: T.fontBody }}>
-                            {s.description}
-                          </p>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-
-            {/* ── Tone Analysis / Tab Content ── */}
-            <div className="rounded-2xl p-6" style={{ backgroundColor: T.surface, boxShadow: "0 20px 40px rgba(45,51,58,0.06)" }}>
-              <div className="mb-4 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Sparkles className="h-4 w-4" style={{ color: T.primary }} />
-                  <h3 className="text-sm font-bold" style={{ fontFamily: T.fontHead, color: T.onSurface }}>
-                    {TABS.find((t) => t.key === activeTab)?.label} Analysis
-                  </h3>
-                </div>
-                {(() => {
-                  const style = getScoreBadgeStyle(avgTabScore);
-                  return (
-                    <span className="rounded-full px-3 py-0.5 text-[10px] font-bold uppercase tracking-wider" style={{ backgroundColor: style.bg, color: style.color }}>
-                      {getScoreLabel(avgTabScore)}
-                    </span>
-                  );
-                })()}
+                {extractedData.phone && (
+                  <p className="text-muted-foreground">{extractedData.phone}</p>
+                )}
+                <p className="text-xs text-muted-foreground">{fileName}</p>
               </div>
 
-              {/* Score metric cards */}
-              <div className="mb-5 grid grid-cols-2 gap-3">
-                {TAB_SCORE_MAP[activeTab].map((scoreKey) => (
-                  <div key={scoreKey} className="rounded-xl p-4" style={{ backgroundColor: T.surfaceLow }}>
-                    <p className="text-[9px] font-semibold uppercase tracking-[0.15em]" style={{ color: T.outline }}>
-                      {scoreKey.charAt(0).toUpperCase() + scoreKey.slice(1)}
-                    </p>
-                    <p className="mt-1 text-lg font-bold" style={{ fontFamily: T.fontHead, color: T.onSurface }}>
-                      {scores[scoreKey]}/100
+              <Button variant="secondary" className="w-full gap-2">
+                <Download data-icon="inline-start" className="h-4 w-4" />
+                Export PDF
+              </Button>
+            </CardContent>
+          </Card>
+
+          <Card className="border-0 bg-muted/50 shadow-none">
+            <CardContent className="p-4">
+              <div className="flex items-start gap-3">
+                <div className="flex size-9 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+                  <Zap className="h-4 w-4" />
+                </div>
+                <div className="space-y-1">
+                  <p className="text-sm font-semibold text-foreground">
+                    Quick takeaway
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    {highSuggestion?.title ||
+                      "Your report is ready for review."}
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </aside>
+
+        <section className="flex flex-col gap-6">
+          <div className="grid gap-4 xl:grid-cols-[1.4fr_.9fr]">
+            <Card className="border-0 shadow-sm">
+              <CardHeader>
+                <CardDescription>Aggregate rating</CardDescription>
+                <div className="flex items-end justify-between gap-4">
+                  <div>
+                    <CardTitle className="text-4xl font-semibold tracking-tight">
+                      {overallScore}
+                      <span className="ml-1 text-base font-medium text-muted-foreground">
+                        /100
+                      </span>
+                    </CardTitle>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      Positioning strength for {roleHint}
                     </p>
                   </div>
-                ))}
-              </div>
-
-              <p className="text-xs leading-relaxed" style={{ color: T.onSurfaceVariant, fontFamily: T.fontBody }}>
-                {extractedData.summary}
-              </p>
-
-              {/* Skills chips for skills tab */}
-              {activeTab === "skills" && extractedData.skills.length > 0 && (
-                <div className="mt-4 flex flex-wrap gap-1.5">
-                  {extractedData.skills.slice(0, 12).map((skill) => (
-                    <span key={skill.name} className="rounded-full px-2.5 py-1 text-[10px] font-semibold" style={{ backgroundColor: T.surfaceLow, color: T.primary }}>
-                      {skill.name}
-                    </span>
+                  <Badge variant={getScoreBadgeVariant(overallScore)}>
+                    {getScoreLabel(overallScore)}
+                  </Badge>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <Progress value={overallScore} />
+                <div className="grid gap-3 sm:grid-cols-3">
+                  {[
+                    { label: "Relevance", value: scores.relevance },
+                    { label: "Formatting", value: scores.formatting },
+                    { label: "Impact", value: scores.impact },
+                  ].map((item) => (
+                    <div
+                      key={item.label}
+                      className="rounded-lg bg-muted/60 p-3"
+                    >
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                        {item.label}
+                      </p>
+                      <p className="mt-1 text-lg font-semibold text-foreground">
+                        {item.value}/100
+                      </p>
+                    </div>
                   ))}
                 </div>
-              )}
-            </div>
+              </CardContent>
+            </Card>
 
-            {/* ── Job Match (if available) ── */}
-            {jobMatch && (
-              <div className="rounded-2xl p-6" style={{ backgroundColor: T.surface, boxShadow: "0 20px 40px rgba(45,51,58,0.06)" }}>
-                <div className="mb-4 flex items-center justify-between">
-                  <h3 className="text-sm font-bold" style={{ fontFamily: T.fontHead, color: T.onSurface }}>
-                    Job Match Analysis
-                  </h3>
-                  {(() => {
-                    const style = getScoreBadgeStyle(jobMatch.matchPercentage);
-                    return (
-                      <span className="rounded-full px-3 py-0.5 text-[10px] font-bold uppercase tracking-wider" style={{ backgroundColor: style.bg, color: style.color }}>
-                        {jobMatch.matchPercentage}% Match
-                      </span>
-                    );
-                  })()}
-                </div>
-
-                {/* Match bar */}
-                <div className="mb-5 h-2 w-full overflow-hidden rounded-full" style={{ backgroundColor: T.surfaceContainer }}>
-                  <div className="h-full rounded-full" style={{ width: `${jobMatch.matchPercentage}%`, background: `linear-gradient(90deg, ${T.primary}, ${T.primaryContainer})` }} />
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  {jobMatch.matchedSkills.length > 0 && (
-                    <div>
-                      <p className="mb-2 text-[9px] font-semibold uppercase tracking-[0.15em]" style={{ color: T.success }}>Matched</p>
-                      <div className="flex flex-wrap gap-1">
-                        {jobMatch.matchedSkills.map((s) => (
-                          <span key={s} className="rounded-full px-2 py-0.5 text-[10px] font-medium" style={{ backgroundColor: T.successBg, color: T.success }}>
-                            ✓ {s}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                  {jobMatch.missingSkills.length > 0 && (
-                    <div>
-                      <p className="mb-2 text-[9px] font-semibold uppercase tracking-[0.15em]" style={{ color: T.error }}>Missing</p>
-                      <div className="flex flex-wrap gap-1">
-                        {jobMatch.missingSkills.map((s) => (
-                          <span key={s} className="rounded-full px-2 py-0.5 text-[10px] font-medium" style={{ backgroundColor: T.errorBg, color: T.error }}>
-                            ✗ {s}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
+            {highSuggestion && (
+              <Card className="border-0 shadow-sm">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <AlertCircle className="h-4 w-4 text-destructive" />
+                    Priority action
+                  </CardTitle>
+                  <CardDescription>
+                    Tackle this first to improve the report fastest.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm font-medium text-foreground">
+                    {highSuggestion.title}
+                  </p>
+                  <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                    {highSuggestion.description}
+                  </p>
+                </CardContent>
+              </Card>
             )}
           </div>
-        </div>
-      </div>
 
-      {/* ── BOTTOM BAR ───────────────────────────────────── */}
-      <div className="fixed bottom-0 left-0 right-0 z-30 flex items-center justify-center gap-3 px-4 py-4" style={{ backgroundColor: "rgba(248,249,254,0.85)", backdropFilter: "blur(12px)" }}>
-        <Link
-          href="/dashboard/history"
-          className="flex items-center gap-2 rounded-full px-5 py-2.5 text-xs font-semibold transition-all hover:opacity-80"
-          style={{ backgroundColor: T.surface, color: T.onSurface, fontFamily: T.fontBody, boxShadow: "0 2px 8px rgba(45,51,58,0.08)" }}
-        >
-          <FileText className="h-3.5 w-3.5" />
-          View Previous Versions
-        </Link>
-        <Link
-          href="/dashboard/new"
-          className="flex items-center gap-2 rounded-full px-6 py-2.5 text-xs font-semibold transition-all hover:shadow-lg hover:shadow-[#5056af]/20"
-          style={{ background: `linear-gradient(135deg, ${T.primary}, ${T.primaryContainer})`, color: "#fbf7ff", fontFamily: T.fontBody }}
-        >
-          <Sparkles className="h-3.5 w-3.5" />
-          Analyze New Resume
-        </Link>
+          <Tabs defaultValue="overview" className="w-full">
+            <TabsList className="grid h-auto w-full grid-cols-2 gap-1 md:grid-cols-4">
+              {RESULT_TABS.map((tab) => (
+                <TabsTrigger key={tab.key} value={tab.key} className="py-2.5">
+                  {tab.label}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+
+            {RESULT_TABS.map((tab) => {
+              const average = Math.round(
+                tab.scoreKeys.reduce((sum, key) => sum + scores[key], 0) /
+                  tab.scoreKeys.length,
+              );
+
+              return (
+                <TabsContent key={tab.key} value={tab.key}>
+                  <Card className="border-0 shadow-sm">
+                    <CardHeader>
+                      <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div>
+                          <CardTitle className="text-base">
+                            {tab.label}
+                          </CardTitle>
+                          <CardDescription>{tab.text}</CardDescription>
+                        </div>
+                        <Badge variant={getScoreBadgeVariant(average)}>
+                          {getScoreLabel(average)}
+                        </Badge>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        {tab.scoreKeys.map((scoreKey) => (
+                          <div
+                            key={scoreKey}
+                            className="rounded-lg bg-muted/60 p-4"
+                          >
+                            <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                              {scoreKey.charAt(0).toUpperCase() +
+                                scoreKey.slice(1)}
+                            </p>
+                            <p className="mt-1 text-2xl font-semibold text-foreground">
+                              {scores[scoreKey]}
+                              <span className="ml-1 text-sm font-medium text-muted-foreground">
+                                /100
+                              </span>
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+
+                      <p className="text-sm leading-6 text-muted-foreground">
+                        {extractedData.summary ||
+                          "No summary was extracted for this section."}
+                      </p>
+
+                      {tab.key === "skills" &&
+                        extractedData.skills.length > 0 && (
+                          <div className="flex flex-wrap gap-2">
+                            {extractedData.skills.slice(0, 12).map((skill) => (
+                              <Badge key={skill.name} variant="secondary">
+                                {skill.name}
+                              </Badge>
+                            ))}
+                          </div>
+                        )}
+
+                      {tab.key === "overview" && jobDescription && (
+                        <div className="rounded-lg bg-muted/60 p-4">
+                          <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                            Target brief
+                          </p>
+                          <p className="mt-2 line-clamp-4 text-sm leading-6 text-muted-foreground">
+                            {jobDescription}
+                          </p>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+              );
+            })}
+          </Tabs>
+
+          <Card className="border-0 shadow-sm">
+            <CardContent className="p-0">
+              <Accordion
+                type="multiple"
+                defaultValue={[
+                  "suggestions",
+                  "experience",
+                  "education",
+                  ...(jobMatch ? ["match"] : []),
+                ]}
+                className="px-6"
+              >
+                <AccordionItem value="suggestions">
+                  <AccordionTrigger className="py-4 hover:no-underline">
+                    <div className="flex items-center gap-3">
+                      <div className="flex size-9 items-center justify-center rounded-lg bg-muted">
+                        <CheckCircle2 className="h-4 w-4 text-primary" />
+                      </div>
+                      <div className="text-left">
+                        <p className="text-sm font-semibold text-foreground">
+                          Resume improvement checklist
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {
+                            suggestions.filter((s) => s.priority === "high")
+                              .length
+                          }{" "}
+                          high-priority items remaining
+                        </p>
+                      </div>
+                    </div>
+                  </AccordionTrigger>
+                  <AccordionContent className="pb-4">
+                    <div className="flex flex-col gap-3">
+                      {sortedSuggestions.map((suggestion, index) => (
+                        <div
+                          key={`${suggestion.title}-${index}`}
+                          className="rounded-lg bg-muted/60 p-4"
+                        >
+                          <div className="flex flex-wrap items-start justify-between gap-3">
+                            <div className="flex items-start gap-3">
+                              {suggestion.priority === "high" ? (
+                                <AlertCircle className="mt-0.5 h-4 w-4 text-destructive" />
+                              ) : (
+                                <Info className="mt-0.5 h-4 w-4 text-muted-foreground" />
+                              )}
+                              <div>
+                                <p className="text-sm font-semibold text-foreground">
+                                  {suggestion.title}
+                                </p>
+                                <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                                  {suggestion.description}
+                                </p>
+                              </div>
+                            </div>
+                            <Badge
+                              variant={getPriorityVariant(suggestion.priority)}
+                            >
+                              {suggestion.priority}
+                            </Badge>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
+
+                <AccordionItem value="experience">
+                  <AccordionTrigger className="py-4 hover:no-underline">
+                    <p className="text-sm font-semibold text-foreground">
+                      Experience summary
+                    </p>
+                  </AccordionTrigger>
+                  <AccordionContent className="pb-4">
+                    <div className="flex flex-col gap-3">
+                      {extractedData.experience.length > 0 ? (
+                        extractedData.experience.map((item, index) => (
+                          <div
+                            key={`${item.company}-${index}`}
+                            className="rounded-lg bg-muted/60 p-4"
+                          >
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                              <p className="text-sm font-semibold text-foreground">
+                                {item.role}
+                              </p>
+                              <p className="text-xs text-muted-foreground">
+                                {item.duration}
+                              </p>
+                            </div>
+                            <p className="mt-1 text-sm text-muted-foreground">
+                              {item.company}
+                            </p>
+                            <ul className="mt-3 ml-4 list-disc space-y-1 text-sm text-muted-foreground">
+                              {item.highlights.map((highlight, idx) => (
+                                <li key={`${item.company}-highlight-${idx}`}>
+                                  {highlight}
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        ))
+                      ) : (
+                        <p className="text-sm text-muted-foreground">
+                          No experience data was extracted.
+                        </p>
+                      )}
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
+
+                <AccordionItem value="education">
+                  <AccordionTrigger className="py-4 hover:no-underline">
+                    <p className="text-sm font-semibold text-foreground">
+                      Education
+                    </p>
+                  </AccordionTrigger>
+                  <AccordionContent className="pb-4">
+                    <div className="flex flex-col gap-3">
+                      {extractedData.education.length > 0 ? (
+                        extractedData.education.map((item, index) => (
+                          <div
+                            key={`${item.institution}-${index}`}
+                            className="rounded-lg bg-muted/60 p-4"
+                          >
+                            <p className="text-sm font-semibold text-foreground">
+                              {item.degree}
+                            </p>
+                            <p className="mt-1 text-sm text-muted-foreground">
+                              {item.institution} · {item.field}
+                            </p>
+                            <p className="mt-1 text-xs text-muted-foreground">
+                              {item.year}
+                            </p>
+                          </div>
+                        ))
+                      ) : (
+                        <p className="text-sm text-muted-foreground">
+                          No education details were extracted.
+                        </p>
+                      )}
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
+
+                {jobMatch && (
+                  <AccordionItem value="match">
+                    <AccordionTrigger className="py-4 hover:no-underline">
+                      <div className="flex items-center gap-3">
+                        <p className="text-sm font-semibold text-foreground">
+                          Job match analysis
+                        </p>
+                        <Badge
+                          variant={getScoreBadgeVariant(
+                            jobMatch.matchPercentage,
+                          )}
+                        >
+                          {jobMatch.matchPercentage}% match
+                        </Badge>
+                      </div>
+                    </AccordionTrigger>
+                    <AccordionContent className="space-y-4 pb-4">
+                      <Progress value={jobMatch.matchPercentage} />
+
+                      <div className="grid gap-4 md:grid-cols-2">
+                        <div className="space-y-2">
+                          <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                            Matched skills
+                          </p>
+                          <div className="flex flex-wrap gap-2">
+                            {jobMatch.matchedSkills.length > 0 ? (
+                              jobMatch.matchedSkills.map((skill) => (
+                                <Badge key={skill} variant="secondary">
+                                  {skill}
+                                </Badge>
+                              ))
+                            ) : (
+                              <p className="text-sm text-muted-foreground">
+                                No matched skills recorded.
+                              </p>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="space-y-2">
+                          <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                            Missing skills
+                          </p>
+                          <div className="flex flex-wrap gap-2">
+                            {jobMatch.missingSkills.length > 0 ? (
+                              jobMatch.missingSkills.map((skill) => (
+                                <Badge key={skill} variant="destructive">
+                                  {skill}
+                                </Badge>
+                              ))
+                            ) : (
+                              <p className="text-sm text-muted-foreground">
+                                No missing skills were identified.
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {jobMatch.recommendations.length > 0 && (
+                        <div className="rounded-lg bg-muted/60 p-4">
+                          <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                            Recommendations
+                          </p>
+                          <ul className="mt-2 ml-4 list-disc space-y-1 text-sm text-muted-foreground">
+                            {jobMatch.recommendations.map(
+                              (recommendation, index) => (
+                                <li key={`recommendation-${index}`}>
+                                  {recommendation}
+                                </li>
+                              ),
+                            )}
+                          </ul>
+                        </div>
+                      )}
+                    </AccordionContent>
+                  </AccordionItem>
+                )}
+              </Accordion>
+            </CardContent>
+          </Card>
+
+          <div className="flex flex-wrap gap-3">
+            <Button variant="secondary" asChild>
+              <Link href="/dashboard/history">
+                <FileText data-icon="inline-start" className="h-4 w-4" />
+                View Previous Versions
+              </Link>
+            </Button>
+            <Button asChild>
+              <Link href="/dashboard/new">
+                <Sparkles data-icon="inline-start" className="h-4 w-4" />
+                Analyze New Resume
+                <ArrowRight data-icon="inline-end" className="h-4 w-4" />
+              </Link>
+            </Button>
+          </div>
+        </section>
       </div>
     </div>
   );

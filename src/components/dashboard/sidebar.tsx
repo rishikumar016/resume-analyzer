@@ -67,7 +67,7 @@ export function DashboardSidebar() {
       <SidebarContent>
         <SidebarMenu>
           {NAV_ITEMS.map((item) => (
-            <SidebarMenuItem key={item.href}>
+            <SidebarMenuItem key={item.href} className="p-2">
               <SidebarMenuButton
                 asChild
                 isActive={pathname === item.href}

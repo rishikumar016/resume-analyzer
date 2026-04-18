@@ -1,6 +1,7 @@
-import { SidebarProvider } from "@/components/ui/sidebar";
-import { TooltipProvider } from "@/components/ui/tooltip";
 import { DashboardSidebar } from "@/components/dashboard/sidebar";
+import { Header } from "@/components/header";
+import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
+import { TooltipProvider } from "@/components/ui/tooltip";
 
 export default function DashboardLayout({
   children,
@@ -11,7 +12,10 @@ export default function DashboardLayout({
     <TooltipProvider>
       <SidebarProvider>
         <DashboardSidebar />
-        <main className="flex-1 overflow-auto">{children}</main>
+        <SidebarInset className="min-h-screen">
+          <Header fixed />
+          <div className="flex flex-1 flex-col">{children}</div>
+        </SidebarInset>
       </SidebarProvider>
     </TooltipProvider>
   );

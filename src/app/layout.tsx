@@ -1,12 +1,28 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { Poppins, Lora, Fira_Code } from "next/font/google";
-import { cn } from "@/lib/utils";
+import { DialogRoot } from "@/components/dialog-root";
 import { QueryProvider } from "@/components/providers/query-provider";
+import { Toaster } from "@/components/ui/sonner";
+import { DialogProvider } from "@/context/dialog-context";
+import { ThemeProvider } from "@/context/theme-provider";
+import { cn } from "@/lib/utils";
 
-const poppins = Poppins({ subsets: ["latin"], weight: ["300", "400", "500", "600", "700"], variable: "--font-sans" });
-const lora = Lora({ subsets: ["latin"], weight: ["400", "500", "600", "700"], variable: "--font-serif" });
-const firaCode = Fira_Code({ subsets: ["latin"], weight: ["400", "500", "600", "700"], variable: "--font-mono" });
+const poppins = Poppins({
+  subsets: ["latin"],
+  weight: ["300", "400", "500", "600", "700"],
+  variable: "--font-sans",
+});
+const lora = Lora({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-serif",
+});
+const firaCode = Fira_Code({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-mono",
+});
 
 export const metadata: Metadata = {
   title: "Resume Analyzer",
@@ -20,9 +36,26 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={cn("h-full antialiased", poppins.variable, lora.variable, firaCode.variable)}>
-      <body className="min-h-full flex flex-col font-sans">
-        <QueryProvider>{children}</QueryProvider>
+    <html
+      lang="en"
+      suppressHydrationWarning
+      className={cn(
+        "h-full antialiased",
+        poppins.variable,
+        lora.variable,
+        firaCode.variable,
+      )}
+    >
+      <body className="min-h-screen bg-background font-sans text-foreground">
+        <ThemeProvider>
+          <QueryProvider>
+            <DialogProvider>
+              {children}
+              <DialogRoot />
+              <Toaster />
+            </DialogProvider>
+          </QueryProvider>
+        </ThemeProvider>
       </body>
     </html>
   );
