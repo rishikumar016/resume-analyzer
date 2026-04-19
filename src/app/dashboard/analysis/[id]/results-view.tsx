@@ -48,6 +48,7 @@ interface Suggestion {
 
 interface AnalysisResultsViewProps {
   analysisId: string;
+  resumeId: string;
   overallScore: number;
   scores: {
     relevance: number;
@@ -162,6 +163,7 @@ function QuickFixesPanel({ suggestions }: { suggestions: Suggestion[] }) {
 
 export function AnalysisResultsView({
   analysisId,
+  resumeId,
   overallScore,
   scores,
   extractedData,
@@ -440,8 +442,14 @@ export function AnalysisResultsView({
 
         {/* Action Buttons */}
         <div className="flex flex-wrap gap-3 pb-6">
+          <Button variant="default" asChild>
+            <Link href={`/dashboard/resume/${resumeId}`}>
+              <Edit2 className="h-4 w-4 mr-2" />
+              Edit Resume
+            </Link>
+          </Button>
           <Button
-            variant="default"
+            variant="secondary"
             onClick={handleSaveAll}
             disabled={saveMutation.isPending}
             className="gap-2"

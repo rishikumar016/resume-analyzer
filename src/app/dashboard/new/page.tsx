@@ -27,7 +27,10 @@ export default function NewAnalysisPage() {
   });
 
   const onSubmit = async (values: NewAnalysisValues) => {
-    if (!file) return;
+    if (!file) {
+      setError("Please select a resume file.");
+      return;
+    }
     setError(null);
 
     try {
@@ -36,15 +39,21 @@ export default function NewAnalysisPage() {
         jobDescription: values.jobDescription,
       });
 
-      if (result.analysisId) {
-        router.push(`/dashboard/analysis/${result.analysisId}`);
-      } else {
-        router.push("/dashboard");
-      }
+      console.log("Analysis result:", result);
 
-      router.refresh();
+      if (result.success && result.analysisId) {
+        await router.push(`/dashboard/analysis/${result.analysisId}`);
+        router.refresh();
+      } else if (result.success) {
+        setError("Analysis completed but analysis ID was not returned. Redirecting to dashboard...");
+        await router.push("/dashboard");
+        router.refresh();
+      } else {
+        setError(result.error || "Analysis failed but no error message was provided.");
+      }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong.");
+      console.error("Analysis error:", err);
+      setError(err instanceof Error ? err.message : "Something went wrong during analysis.");
     }
   };
 

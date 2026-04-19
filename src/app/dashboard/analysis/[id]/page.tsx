@@ -79,6 +79,7 @@ export default async function AnalysisResultPage({ params }: PageProps) {
   return (
     <AnalysisResultsView
       analysisId={analysis.id}
+      resumeId={resume.id}
       overallScore={analysis.overallScore}
       scores={scores}
       extractedData={extractedData}

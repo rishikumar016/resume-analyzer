@@ -46,7 +46,7 @@ export async function POST(req: NextRequest) {
 
     // Run AI analysis with structured output
     const { object: analysis } = await generateObject({
-      model: openai("gpt-5.4-mini"),
+      model: openai("gpt-4o-mini"),
       schema: resumeAnalysisSchema,
       system: SYSTEM_PROMPT,
       prompt: buildUserPrompt(resumeText, jobDescription || undefined),
@@ -80,12 +80,30 @@ export async function POST(req: NextRequest) {
           // Auth not configured or user not logged in — continue without userId
         }
 
+        // Construct a basic Resume object from extracted data
+        const resumeObject = {
+          basics: {
+            name: analysis.name,
+            email: analysis.email || undefined,
+            phone: analysis.phone || undefined,
+            summary: analysis.summary,
+          },
+          work: analysis.experience,
+          education: analysis.education,
+          skills: analysis.skills.map(s => ({
+            name: s.name,
+            level: s.proficiency,
+            keywords: [s.category],
+          })),
+        };
+
         const [resume] = await db
           .insert(resumes)
           .values({
             userId: userId ?? null,
             fileName: file.name,
             rawText: resumeText,
+            resumeData: resumeObject,
           })
           .returning();
 

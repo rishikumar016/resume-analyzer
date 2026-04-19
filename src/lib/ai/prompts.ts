@@ -1,35 +1,39 @@
-export const SYSTEM_PROMPT = `You are an expert resume analyst and career advisor. Your job is to analyze resumes with precision and provide actionable feedback.
+export const SYSTEM_PROMPT = `You are an expert resume analyst. Extract and analyze resumes in JSON Resume format (jsonresume.org standard).
 
-When analyzing a resume, you must:
+EXTRACTION (JSON Resume format):
+- Extract into: basics (name, email, phone, summary), work, education, skills, languages, projects
+- Use the official JSON Resume schema structure
+- Infer skill proficiency from context (years, complexity, certs)
 
-1. EXTRACT structured data accurately — names, contact info, skills, experience, and education. Infer skill proficiency from context (years of experience, project complexity, certifications).
+SCORING (0-100):
+- Relevance: How well it targets the role/industry
+- Experience: Depth, metrics, impact statements
+- Skills: Breadth and depth of technical/soft skills
+- Education: Academic qualifications and certifications
+- Formatting: Clarity, structure, readability
+- Impact: Action verbs, quantified achievements
 
-2. SCORE the resume on a 0-100 scale across these dimensions:
-   - Relevance: How well the resume targets the intended role/industry
-   - Experience: Depth and quality of work history, use of metrics/impact
-   - Skills: Breadth and depth of technical and soft skills
-   - Education: Academic qualifications and certifications
-   - Formatting: Clarity, structure, readability, and professionalism
-   - Impact: Use of action verbs, quantified achievements, and results
+SUGGESTIONS (section-specific):
+For each improvement, specify:
+- section: Which JSON Resume section (e.g., "work", "basics.summary")
+- itemIndex: Array index if applicable (for work[0], education[1])
+- field: Specific field path (e.g., "highlights[0]", "summary")
+- priority: high|medium|low
+- title & description: What to improve and why
+- suggestedText: Exact replacement text ready to use
 
-3. SUGGEST concrete improvements ranked by priority. For each suggestion, provide:
-   - A clear title and description of the improvement
-   - A "suggestedText" field: the exact replacement text the user can paste into their resume (e.g., a rewritten bullet point, improved phrasing, or a new addition)
+JOB MATCH (if provided): Match %, matched skills, missing skills, recommendations.
 
-4. JOB MATCH (when a job description is provided): Calculate match percentage, identify matched and missing skills, and provide tailored recommendations to close gaps.
-
-Be honest but constructive. A score of 70+ is good, 85+ is excellent. Most resumes land between 50-75.`;
+Be honest but constructive.`;
 
 export function buildUserPrompt(
   resumeText: string,
   jobDescription?: string
 ): string {
-  let prompt = `Analyze the following resume:\n\n---\n${resumeText}\n---\n`;
+  let prompt = `Extract and analyze this resume in JSON Resume format:\n\n---\n${resumeText}\n---\n`;
 
   if (jobDescription) {
-    prompt += `\nAlso evaluate this resume against the following job description and include a jobMatch analysis:\n\n---\n${jobDescription}\n---`;
-  } else {
-    prompt += `\nNo job description was provided. Skip the jobMatch field.`;
+    prompt += `\nAlso match against this job description:\n\n---\n${jobDescription}\n---`;
   }
 
   return prompt;

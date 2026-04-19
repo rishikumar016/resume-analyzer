@@ -22,6 +22,17 @@ export async function GET() {
       );
     }
 
+    // Get the database user record for the authenticated user
+    const dbUser = await db
+      .select()
+      .from(users)
+      .where(eq(users.authId, user.id))
+      .limit(1);
+
+    if (dbUser.length === 0) {
+      return NextResponse.json({ success: true, data: [] });
+    }
+
     const rows = await db
       .select({
         id: analyses.id,
@@ -35,8 +46,7 @@ export async function GET() {
       })
       .from(analyses)
       .innerJoin(resumes, eq(analyses.resumeId, resumes.id))
-      .innerJoin(users, eq(resumes.userId, users.id))
-      .where(eq(users.authId, user.id))
+      .where(eq(resumes.userId, dbUser[0].id))
       .orderBy(desc(analyses.analyzedAt));
 
     const data = rows.map((row) => ({

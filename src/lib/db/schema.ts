@@ -22,7 +22,10 @@ export const resumes = pgTable("resumes", {
   userId: uuid("user_id").references(() => users.id, { onDelete: "cascade" }),
   fileName: varchar("file_name", { length: 255 }).notNull(),
   rawText: text("raw_text").notNull(),
+  resumeData: jsonb("resume_data").notNull(),
+  selectedTemplate: varchar("selected_template", { length: 50 }).default("modern"),
   uploadedAt: timestamp("uploaded_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
 export const analyses = pgTable("analyses", {
