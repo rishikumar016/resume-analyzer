@@ -1,7 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import { eq } from "drizzle-orm";
 import { db, isDatabaseConfigured } from "@/lib/db";
-import { resumes, analyses } from "@/lib/db/schema";
+import { resumes, analyses, users } from "@/lib/db/schema";
 import { createClient } from "@/lib/supabase/server";
 import { ResumeEditor } from "@/components/resume-editor/ResumeEditor";
 
@@ -25,6 +25,19 @@ export default async function ResumePage({ params }: ResumePageProps) {
     redirect("/sign-in");
   }
 
+  // Get database user ID from auth ID
+  const dbUser = await db
+    .select()
+    .from(users)
+    .where(eq(users.authId, user.id))
+    .limit(1);
+
+  if (dbUser.length === 0) {
+    redirect("/sign-in");
+  }
+
+  const userId = dbUser[0].id;
+
   // Fetch resume
   const resumeData = await db
     .select()
@@ -39,7 +52,7 @@ export default async function ResumePage({ params }: ResumePageProps) {
   const resume = resumeData[0];
 
   // Verify user owns this resume
-  if (resume.userId !== user.id) {
+  if (resume.userId !== userId) {
     redirect("/dashboard");
   }
 
