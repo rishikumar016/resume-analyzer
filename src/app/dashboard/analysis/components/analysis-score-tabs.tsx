@@ -9,6 +9,10 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  getScoreLabel,
+  getScoreBadgeVariant,
+} from "@/lib/analysis-utils";
 
 type AnalysisScores = {
   relevance: number;
@@ -28,22 +32,6 @@ interface AnalysisScoreTabsProps {
   scores: AnalysisScores;
   extractedData: ExtractedData;
   jobDescription: string | null;
-}
-
-function getScoreLabel(score: number) {
-  if (score >= 85) return "Strong";
-  if (score >= 70) return "Good";
-  if (score >= 50) return "Needs work";
-  return "Weak";
-}
-
-function getScoreBadgeVariant(
-  score: number,
-): "default" | "secondary" | "outline" | "destructive" {
-  if (score >= 85) return "default";
-  if (score >= 70) return "secondary";
-  if (score >= 50) return "outline";
-  return "destructive";
 }
 
 const RESULT_TABS = [

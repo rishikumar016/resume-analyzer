@@ -71,3 +71,45 @@ export function useAnalysesQuery() {
     queryFn: fetchAnalyses,
   });
 }
+
+async function saveAnalysisSuggestions(
+  analysisId: string,
+  suggestions: Array<{
+    category: string;
+    priority: "high" | "medium" | "low";
+    title: string;
+    description: string;
+    suggestedText?: string;
+  }>
+) {
+  const response = await fetch(`/api/analyses/${analysisId}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ suggestions }),
+  });
+
+  const result = (await response.json()) as { success: boolean; error?: string };
+
+  if (!response.ok || !result.success) {
+    throw new Error(result.error || "Failed to save suggestions.");
+  }
+
+  return result;
+}
+
+export function useSaveAnalysisMutation(analysisId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (suggestions: Array<{
+      category: string;
+      priority: "high" | "medium" | "low";
+      title: string;
+      description: string;
+      suggestedText?: string;
+    }>) => saveAnalysisSuggestions(analysisId, suggestions),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: analysisKeys.all });
+    },
+  });
+}

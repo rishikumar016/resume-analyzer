@@ -11,12 +11,17 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
+import {
+  getScoreBadgeVariant,
+  getPriorityVariant,
+} from "@/lib/analysis-utils";
 
 type Suggestion = {
   category: string;
   priority: "high" | "medium" | "low";
   title: string;
   description: string;
+  suggestedText?: string;
 };
 
 type ExtractedData = {
@@ -45,23 +50,6 @@ interface AnalysisDetailsAccordionProps {
   suggestions: Suggestion[];
   extractedData: ExtractedData;
   jobMatch: JobMatch;
-}
-
-function getScoreBadgeVariant(
-  score: number,
-): "default" | "secondary" | "outline" | "destructive" {
-  if (score >= 85) return "default";
-  if (score >= 70) return "secondary";
-  if (score >= 50) return "outline";
-  return "destructive";
-}
-
-function getPriorityVariant(
-  priority: "high" | "medium" | "low",
-): "default" | "secondary" | "outline" | "destructive" {
-  if (priority === "high") return "destructive";
-  if (priority === "medium") return "secondary";
-  return "outline";
 }
 
 export function AnalysisDetailsAccordion({

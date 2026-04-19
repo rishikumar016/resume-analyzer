@@ -12,7 +12,9 @@ When analyzing a resume, you must:
    - Formatting: Clarity, structure, readability, and professionalism
    - Impact: Use of action verbs, quantified achievements, and results
 
-3. SUGGEST concrete improvements ranked by priority. Each suggestion should be specific enough that the candidate can act on it immediately.
+3. SUGGEST concrete improvements ranked by priority. For each suggestion, provide:
+   - A clear title and description of the improvement
+   - A "suggestedText" field: the exact replacement text the user can paste into their resume (e.g., a rewritten bullet point, improved phrasing, or a new addition)
 
 4. JOB MATCH (when a job description is provided): Calculate match percentage, identify matched and missing skills, and provide tailored recommendations to close gaps.
 

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import { Poppins, Lora, Fira_Code } from "next/font/google";
+import { Manrope, Lora, Fira_Code } from "next/font/google";
 import { DialogRoot } from "@/components/dialog-root";
 import { QueryProvider } from "@/components/providers/query-provider";
 import { Toaster } from "@/components/ui/sonner";
@@ -8,9 +8,9 @@ import { DialogProvider } from "@/context/dialog-context";
 import { ThemeProvider } from "@/context/theme-provider";
 import { cn } from "@/lib/utils";
 
-const poppins = Poppins({
+const manrope = Manrope({
   subsets: ["latin"],
-  weight: ["300", "400", "500", "600", "700"],
+  weight: ["300", "400", "500", "600", "700", "800"],
   variable: "--font-sans",
 });
 const lora = Lora({
@@ -41,7 +41,7 @@ export default function RootLayout({
       suppressHydrationWarning
       className={cn(
         "h-full antialiased",
-        poppins.variable,
+        manrope.variable,
         lora.variable,
         firaCode.variable,
       )}

@@ -63,6 +63,8 @@ export const resumeAnalysisSchema = z.object({
       priority: z.enum(["high", "medium", "low"]),
       title: z.string(),
       description: z.string(),
+      suggestedText: z.string().optional(),
+      isApplied: z.boolean().optional(),
     }),
   ),
 
@@ -120,6 +122,8 @@ export interface AnalysisHistoryItem {
     priority: "high" | "medium" | "low";
     title: string;
     description: string;
+    suggestedText?: string;
+    isApplied?: boolean;
   }>;
   jobMatch: {
     matchPercentage: number;
