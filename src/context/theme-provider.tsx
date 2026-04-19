@@ -1,87 +1,112 @@
-"use client";
+"use client"
 
-import * as React from "react";
+import { createContext, useContext, useEffect, useState, useMemo } from 'react'
+import { getCookie, setCookie, removeCookie } from '@/lib/cookies'
 
-type Theme = "light" | "dark" | "system";
+type Theme = 'dark' | 'light' | 'system'
+type ResolvedTheme = Exclude<Theme, 'system'>
 
-type ThemeProviderContextValue = {
-  theme: Theme;
-  setTheme: (theme: Theme) => void;
-};
-
-const ThemeProviderContext = React.createContext<
-  ThemeProviderContextValue | undefined
->(undefined);
+const DEFAULT_THEME = 'system'
+const THEME_COOKIE_NAME = 'vite-ui-theme'
+const THEME_COOKIE_MAX_AGE = 60 * 60 * 24 * 365 // 1 year
 
 type ThemeProviderProps = {
-  children: React.ReactNode;
-  defaultTheme?: Theme;
-  storageKey?: string;
-};
+  children: React.ReactNode
+  defaultTheme?: Theme
+  storageKey?: string
+}
+
+type ThemeProviderState = {
+  defaultTheme: Theme
+  resolvedTheme: ResolvedTheme
+  theme: Theme
+  setTheme: (theme: Theme) => void
+  resetTheme: () => void
+}
+
+const initialState: ThemeProviderState = {
+  defaultTheme: DEFAULT_THEME,
+  resolvedTheme: 'light',
+  theme: DEFAULT_THEME,
+  setTheme: () => null,
+  resetTheme: () => null,
+}
+
+const ThemeContext = createContext<ThemeProviderState>(initialState)
 
 export function ThemeProvider({
   children,
-  defaultTheme = "system",
-  storageKey = "resume-analyzer-theme",
+  defaultTheme = DEFAULT_THEME,
+  storageKey = THEME_COOKIE_NAME,
+  ...props
 }: ThemeProviderProps) {
-  const [theme, setTheme] = React.useState<Theme>(defaultTheme);
+  const [theme, _setTheme] = useState<Theme>(
+    () => (getCookie(storageKey) as Theme) || defaultTheme
+  )
 
-  React.useEffect(() => {
-    const storedTheme = window.localStorage.getItem(storageKey) as Theme | null;
-    if (storedTheme) {
-      setTheme(storedTheme);
+  // Optimized: Memoize the resolved theme calculation to prevent unnecessary re-computations
+  const resolvedTheme = useMemo((): ResolvedTheme => {
+    if (theme === 'system') {
+      return window.matchMedia('(prefers-color-scheme: dark)').matches
+        ? 'dark'
+        : 'light'
     }
-  }, [storageKey]);
+    return theme as ResolvedTheme
+  }, [theme])
 
-  React.useEffect(() => {
-    const root = window.document.documentElement;
-    const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
+  useEffect(() => {
+    const root = window.document.documentElement
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
 
-    const applyTheme = (value: Theme) => {
-      const resolvedTheme =
-        value === "system" ? (mediaQuery.matches ? "dark" : "light") : value;
-
-      root.classList.remove("light", "dark");
-      root.classList.add(resolvedTheme);
-      root.style.colorScheme = resolvedTheme;
-    };
-
-    applyTheme(theme);
+    const applyTheme = (currentResolvedTheme: ResolvedTheme) => {
+      root.classList.remove('light', 'dark') // Remove existing theme classes
+      root.classList.add(currentResolvedTheme) // Add the new theme class
+    }
 
     const handleChange = () => {
-      if (theme === "system") {
-        applyTheme("system");
+      if (theme === 'system') {
+        const systemTheme = mediaQuery.matches ? 'dark' : 'light'
+        applyTheme(systemTheme)
       }
-    };
+    }
 
-    mediaQuery.addEventListener("change", handleChange);
-    return () => mediaQuery.removeEventListener("change", handleChange);
-  }, [theme]);
+    applyTheme(resolvedTheme)
 
-  const value = React.useMemo(
-    () => ({
-      theme,
-      setTheme: (nextTheme: Theme) => {
-        window.localStorage.setItem(storageKey, nextTheme);
-        setTheme(nextTheme);
-      },
-    }),
-    [theme, storageKey],
-  );
+    mediaQuery.addEventListener('change', handleChange)
 
-  return (
-    <ThemeProviderContext.Provider value={value}>
-      {children}
-    </ThemeProviderContext.Provider>
-  );
-}
+    return () => mediaQuery.removeEventListener('change', handleChange)
+  }, [theme, resolvedTheme])
 
-export function useTheme() {
-  const context = React.useContext(ThemeProviderContext);
-
-  if (!context) {
-    throw new Error("useTheme must be used within a ThemeProvider");
+  const setTheme = (theme: Theme) => {
+    setCookie(storageKey, theme, THEME_COOKIE_MAX_AGE)
+    _setTheme(theme)
   }
 
-  return context;
+  const resetTheme = () => {
+    removeCookie(storageKey)
+    _setTheme(DEFAULT_THEME)
+  }
+
+  const contextValue = {
+    defaultTheme,
+    resolvedTheme,
+    resetTheme,
+    theme,
+    setTheme,
+  }
+
+  return (
+    <ThemeContext value={contextValue} {...props}>
+      {children}
+    </ThemeContext>
+  )
+}
+
+// eslint-disable-next-line react-refresh/only-export-components
+export const useTheme = () => {
+  const context = useContext(ThemeContext)
+
+  if (!context) throw new Error('useTheme must be used within a ThemeProvider')
+
+  return context
 }
